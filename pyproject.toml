@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "rsi-divergence-detector"
+version = "0.1.0"
+description = ""
+authors = ["shawn.kim <dun03191@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "=3.10.5"
+requests = "^2.32.3"
+pandas = "^2.2.3"
+ccxt = "^4.4.33"
+ta-lib = "^0.5.1"
+ipykernel = "^6.29.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
