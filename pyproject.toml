@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "rsi-divergence-detector"
+name = "final-project"
 version = "0.1.0"
 description = ""
 authors = ["shawn.kim <dun03191@gmail.com>"]
@@ -9,9 +9,14 @@ readme = "README.md"
 python = "=3.10.5"
 requests = "^2.32.3"
 pandas = "^2.2.3"
-ccxt = "^4.4.33"
+yfinance = "^0.2.49"
+ccxt = "^4.4.32"
 ta-lib = "^0.5.1"
 ipykernel = "^6.29.5"
+pyyaml = "^6.0.2"
+scipy = "^1.14.1"
+matplotlib = "^3.9.2"
+python-dotenv = "^1.0.1"
 
 
 [build-system]
