@@ -104,7 +104,7 @@ class DivergenceDetector:
                     cond4 = rsi_threshold_check(rsi_idx1, rsi_idx2)   # Check RSI between idx1 and idx2 (noise filtering)
 
                     if cond1 and cond2 and cond3 and cond4:
-                        rsi_between = rsi[idx1+1:idx2]
+                        rsi_between = rsi.loc[idx1+1:idx2]
 
                         if len(rsi_between) == 0:
                             continue
