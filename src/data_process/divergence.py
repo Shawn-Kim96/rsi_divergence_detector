@@ -6,6 +6,7 @@ class DivergenceDetector:
     @staticmethod
     def find_previous_peak(df, divergence_start_idx, is_bullish, bullish_peak_rsi_threshold=55, bearish_peak_rsi_threshold=45):
         # Consider only data before the divergence start index
+        divergence_start_idx
         df_before_divergence = df.iloc[:divergence_start_idx]
         if is_bullish:
             # Bullish: Find previous peaks with RSI >= bullish_peak_rsi_threshold
@@ -31,46 +32,42 @@ class DivergenceDetector:
 
     @staticmethod
     def calculate_tp_sl(previous_idx, divergence_idx, df, is_bullish):
+        previous_high = df.loc[previous_idx, 'high']
+        divergence_low = df.loc[divergence_idx, 'low']
+        previous_low = df.loc[previous_idx, 'low']
+        divergence_high = df.loc[divergence_idx, 'high']
+
         if is_bullish:
-            low = df['low'].iloc[divergence_idx]
-            high = df['high'].iloc[previous_idx]
-            tp = low + (high - low) * 0.382
-            sl = low
+            # For bullish: TP is at 0.382 Fibonacci level
+            tp = divergence_low + (previous_high - divergence_low) * 0.382
+            sl = divergence_low  # SL is the low at the divergence point
         else:
-            low = df['low'].iloc[previous_idx]
-            high = df['high'].iloc[divergence_idx]
-            tp = high - (high - low) * (1 - 0.618)
-            sl = high
+            # For bearish: TP is at 0.618 Fibonacci level
+            tp = divergence_high - (divergence_high - previous_low) * (1 - 0.618)
+            sl = divergence_high  # SL is the high at the divergence point
         return tp, sl
 
 
     def find_divergences(self, df, rsi_period=14, min_bars_lookback=5, max_bars_lookback=180,
                          bullish_rsi_threshold=30, bearish_rsi_threshold=70, price_prominence=1, rsi_prominence=1):
         df = df.copy()
-        price = df['close'].values
-        price_high = df['high'].values
-        price_low = df['low'].values
-        rsi = df['rsi'].values
+        price_high = df['high']
+        price_low = df['low']
+        rsi = df['rsi']
         divergences = []
 
         # Find peaks and troughs in price and RSI
         price_high_peaks, _ = find_peaks(price_high, prominence=price_prominence)
         price_low_peaks, _ = find_peaks(price_low, prominence=price_prominence)
 
-        rsi_peaks, _ = find_peaks(rsi, prominence=rsi_prominence)
-        rsi_troughs, _ = find_peaks(-rsi, prominence=rsi_prominence)
-
-        # Create sets for fast lookup
-        price_high_peaks_set = set(price_high_peaks)
-        price_low_peaks_set = set(price_low_peaks)
-        rsi_peaks_set = set(rsi_peaks)
-        rsi_troughs_set = set(rsi_troughs)
+        rsi_peaks, _ = find_peaks(rsi.values, prominence=rsi_prominence)
+        rsi_troughs, _ = find_peaks(-rsi.values, prominence=rsi_prominence)
 
         # Convert indices to arrays for vectorized operations
-        price_high_peaks = np.array(price_high_peaks)
-        price_low_peaks = np.array(price_low_peaks)
-        rsi_troughs = np.array(rsi_troughs)
-        rsi_peaks = np.array(rsi_peaks)
+        price_high_peaks_df_idx = df.index[price_high_peaks]
+        price_low_peaks_df_idx = df.index[price_low_peaks]
+        rsi_troughs_df_idx = set(df.index[rsi_troughs])
+        rsi_peaks_df_idx = set(df.index[rsi_peaks])
 
         # Function to detect divergences
         def detect_divergence(idx2_list, price_points, rsi_points, divergence_type, rsi_threshold_check,
@@ -89,13 +86,15 @@ class DivergenceDetector:
                 # Skip if no candidates
                 if len(idx1_candidates) == 0:
                     continue
-
+                
+                price_data = price_low if divergence_type == 'Bullish Divergence' else price_high
+                
                 # Price and RSI at idx2
-                price_idx2 = price[idx2]
+                price_idx2 = price_data[idx2]
                 rsi_idx2 = rsi[idx2]
 
                 for idx1 in idx1_candidates:
-                    price_idx1 = price[idx1]
+                    price_idx1 = price_data[idx1]
                     rsi_idx1 = rsi[idx1]
 
                     # Check price condition (higher high or lower low)
@@ -110,8 +109,7 @@ class DivergenceDetector:
                         if len(rsi_between) == 0:
                             continue
 
-                        if divergence_type == 'Bullish Divergence':
-                            if np.all(rsi_between >= np.minimum(rsi_idx1, rsi_idx2)):
+                        if divergence_type == 'Bullish Divergence' and np.all(rsi_between >= np.minimum(rsi_idx1, rsi_idx2)):
                                 # Calculate TP and SL
                                 previous_peak_idx = self.find_previous_peak(df, idx1, is_bullish=True,
                                                                             bullish_peak_rsi_threshold=55,
@@ -132,57 +130,56 @@ class DivergenceDetector:
                                     'entry_datetime': entry_datetime,
                                     'previous_peak_datetime': df['datetime'].iloc[previous_peak_idx],
                                     'divergence': divergence_type,
-                                    'price_change': df['close'].iloc[idx2 + min_bars_lookback] - df['close'].iloc[idx2]
+                                    'price_change': price_data.iloc[idx2 + min_bars_lookback] - price_data.iloc[idx2]
                                     if idx2 + min_bars_lookback < len(df) else np.nan,
                                     'rsi_change': df['rsi'].iloc[idx2 + min_bars_lookback] - rsi_idx2
                                     if idx2 + min_bars_lookback < len(df) else np.nan,
-                                    'future_return': (df['close'].iloc[idx2 + min_bars_lookback] - df['close'].iloc[idx2]) /
-                                                        df['close'].iloc[idx2]
+                                    'future_return': (price_data.iloc[idx2 + min_bars_lookback] - price_data.iloc[idx2]) /
+                                                        price_data.iloc[idx2]
                                     if idx2 + min_bars_lookback < len(df) else np.nan,
                                     'TP': tp,
                                     'SL': sl
                                 })
                                 break  # Break after finding the first valid divergence
                         
-                        elif divergence_type == 'Bearish Divergence':
-                            if np.all(rsi_between <= np.maximum(rsi_idx1, rsi_idx2)):
-                                # Calculate TP and SL
-                                previous_valley_idx = self.find_previous_peak(df, idx1, is_bullish=False,
-                                                                                bullish_peak_rsi_threshold=55,
-                                                                                bearish_peak_rsi_threshold=45)
-                                if previous_valley_idx is None:
-                                    continue
-                                tp, sl = self.calculate_tp_sl(previous_valley_idx, idx2, df, is_bullish=False)
+                        elif divergence_type == 'Bearish Divergence' and np.all(rsi_between <= np.maximum(rsi_idx1, rsi_idx2)):
+                            # Calculate TP and SL
+                            previous_valley_idx = self.find_previous_peak(df, idx1, is_bullish=False,
+                                                                            bullish_peak_rsi_threshold=55,
+                                                                            bearish_peak_rsi_threshold=45)
+                            if previous_valley_idx is None:
+                                continue
+                            tp, sl = self.calculate_tp_sl(previous_valley_idx, idx2, df, is_bullish=False)
 
-                                entry_idx = idx2 + 2
-                                if entry_idx >= len(df):
-                                    continue
-                                entry_datetime = df['datetime'].iloc[entry_idx]
+                            entry_idx = idx2 + 2
+                            if entry_idx >= len(df):
+                                continue
+                            entry_datetime = df['datetime'].iloc[entry_idx]
 
-                                # Record divergence
-                                divergences.append({
-                                    'start_datetime': df['datetime'].iloc[idx1],
-                                    'end_datetime': df['datetime'].iloc[idx2],
-                                    'entry_datetime': entry_datetime,
-                                    'previous_peak_datetime': df['datetime'].iloc[previous_valley_idx],
-                                    'divergence': divergence_type,
-                                    'price_change': df['close'].iloc[idx2 + min_bars_lookback] - df['close'].iloc[idx2]
-                                    if idx2 + min_bars_lookback < len(df) else np.nan,
-                                    'rsi_change': df['rsi'].iloc[idx2 + min_bars_lookback] - rsi_idx2
-                                    if idx2 + min_bars_lookback < len(df) else np.nan,
-                                    'future_return': (df['close'].iloc[idx2 + min_bars_lookback] - df['close'].iloc[idx2]) /
-                                                        df['close'].iloc[idx2]
-                                    if idx2 + min_bars_lookback < len(df) else np.nan,
-                                    'TP': tp,
-                                    'SL': sl
-                                })
-                                break  # Break after finding the first valid divergence
+                            # Record divergence
+                            divergences.append({
+                                'start_datetime': df['datetime'].iloc[idx1],
+                                'end_datetime': df['datetime'].iloc[idx2],
+                                'entry_datetime': entry_datetime,
+                                'previous_peak_datetime': df['datetime'].iloc[previous_valley_idx],
+                                'divergence': divergence_type,
+                                'price_change': price_data.iloc[idx2 + min_bars_lookback] - price_data.iloc[idx2]
+                                if idx2 + min_bars_lookback < len(df) else np.nan,
+                                'rsi_change': df['rsi'].iloc[idx2 + min_bars_lookback] - rsi_idx2
+                                if idx2 + min_bars_lookback < len(df) else np.nan,
+                                'future_return': (price_data.iloc[idx2 + min_bars_lookback] - price_data.iloc[idx2]) /
+                                                    price_data.iloc[idx2]
+                                if idx2 + min_bars_lookback < len(df) else np.nan,
+                                'TP': tp,
+                                'SL': sl
+                            })
+                            break  # Break after finding the first valid divergence
 
         # Bullish Divergence Detection
         detect_divergence(
-            idx2_list=price_low_peaks,
-            price_points=price_low_peaks,
-            rsi_points=rsi_troughs_set,
+            idx2_list=price_low_peaks_df_idx,
+            price_points=price_low_peaks_df_idx,
+            rsi_points=rsi_troughs_df_idx,
             divergence_type='Bullish Divergence',
             rsi_threshold_check=lambda a, b: (a <= bullish_rsi_threshold and b <= bullish_rsi_threshold),
             price_condition=lambda a, b: a < b,  # Price makes lower lows
@@ -193,9 +190,9 @@ class DivergenceDetector:
 
         # Bearish Divergence Detection
         detect_divergence(
-            idx2_list=price_high_peaks,
-            price_points=price_high_peaks,
-            rsi_points=rsi_peaks_set,
+            idx2_list=price_high_peaks_df_idx,
+            price_points=price_high_peaks_df_idx,
+            rsi_points=rsi_peaks_df_idx,
             divergence_type='Bearish Divergence',
             rsi_threshold_check=lambda a, b: (a >= bearish_rsi_threshold and b >= bearish_rsi_threshold),
             price_condition=lambda a, b: a > b,  # Price makes higher highs
