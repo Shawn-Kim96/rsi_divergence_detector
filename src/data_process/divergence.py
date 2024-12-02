@@ -116,10 +116,17 @@ class DivergenceDetector:
                                 if previous_peak_idx is None:
                                     continue
                                 tp, sl = self.calculate_tp_sl(previous_peak_idx, idx2, df, is_bullish=True)
+
+                                entry_idx = idx2 + 2
+                                if entry_idx >= len(df):
+                                    continue
+                                entry_datetime = df['datetime'].iloc[entry_idx]
+                                
                                 # Record divergence
                                 divergences.append({
                                     'start_datetime': df['datetime'].iloc[idx1],
                                     'end_datetime': df['datetime'].iloc[idx2],
+                                    'entry_datetime': entry_datetime,
                                     'divergence': divergence_type,
                                     'price_change': df['close'].iloc[idx2 + min_bars_lookback] - df['close'].iloc[idx2]
                                     if idx2 + min_bars_lookback < len(df) else np.nan,
@@ -146,6 +153,7 @@ class DivergenceDetector:
                                 divergences.append({
                                     'start_datetime': df['datetime'].iloc[idx1],
                                     'end_datetime': df['datetime'].iloc[idx2],
+                                    'entry_datetime': entry_datetime,
                                     'divergence': divergence_type,
                                     'price_change': df['close'].iloc[idx2 + min_bars_lookback] - df['close'].iloc[idx2]
                                     if idx2 + min_bars_lookback < len(df) else np.nan,
