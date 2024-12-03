@@ -7,7 +7,7 @@ class DivergenceDetector:
     def find_previous_peak(df, divergence_start_idx, is_bullish, bullish_peak_rsi_threshold=55, bearish_peak_rsi_threshold=45):
         # Consider only data before the divergence start index
         divergence_start_idx
-        df_before_divergence = df.iloc[:divergence_start_idx]
+        df_before_divergence = df.loc[:divergence_start_idx]
         if is_bullish:
             # Bullish: Find previous peaks with RSI >= bullish_peak_rsi_threshold
             peaks_idx, _ = find_peaks(df_before_divergence['high'].values)
@@ -72,76 +72,93 @@ class DivergenceDetector:
         # Function to detect divergences
         def detect_divergence(idx2_list, price_points, rsi_points, divergence_type, rsi_threshold_check,
                               price_condition, rsi_condition, rsi_threshold, is_bullish):
-            for idx2 in idx2_list:
-                # Set window boundaries
-                window_start = max(0, idx2 - max_bars_lookback)
-                window_end = idx2 - min_bars_lookback + 1
+            
+            price_points_positions = np.array([df.index.get_loc(idx) for idx in price_points])
+            idx2_positions = np.array([df.index.get_loc(idx) for idx in idx2_list])
+            
+            for idx2_pos, idx2 in zip(idx2_positions, idx2_list):
+                # Set window boundaries using positions
+                window_start_pos = max(0, idx2_pos - max_bars_lookback)
+                window_end_pos = idx2_pos - min_bars_lookback + 1
 
-                if window_end <= window_start:
+                if window_end_pos <= window_start_pos:
                     continue  # Skip if window is invalid
 
                 # Candidate indices within the window
-                idx1_candidates = price_points[(price_points >= window_start) & (price_points < window_end)]
+                idx1_candidates_positions = price_points_positions[
+                    (price_points_positions >= window_start_pos) & (price_points_positions < window_end_pos)
+                ]
 
-                # Skip if no candidates
-                if len(idx1_candidates) == 0:
+                if len(idx1_candidates_positions) == 0:
                     continue
-                
+
+                idx1_candidates = df.index[idx1_candidates_positions]
+
                 price_data = price_low if divergence_type == 'Bullish Divergence' else price_high
-                
+
                 # Price and RSI at idx2
-                price_idx2 = price_data[idx2]
-                rsi_idx2 = rsi[idx2]
+                price_idx2 = price_data.loc[idx2]
+                rsi_idx2 = rsi.loc[idx2]
 
                 for idx1 in idx1_candidates:
-                    price_idx1 = price_data[idx1]
-                    rsi_idx1 = rsi[idx1]
+                    idx1_pos = df.index.get_loc(idx1)
+                    price_idx1 = price_data.loc[idx1]
+                    rsi_idx1 = rsi.loc[idx1]
 
                     # Check price condition (higher high or lower low)
-                    cond1 = price_condition(price_idx2, price_idx1)  # Check if RSI points correspond to price points
-                    cond2 = (idx1 in rsi_points) and (idx2 in rsi_points)  # Check RSI condition (lower high or higher low)
-                    cond3 = rsi_condition(rsi_idx2, rsi_idx1)  # Check RSI thresholds
-                    cond4 = rsi_threshold_check(rsi_idx1, rsi_idx2)   # Check RSI between idx1 and idx2 (noise filtering)
+                    cond1 = price_condition(price_idx2, price_idx1)
+                    cond2 = (idx1 in rsi_points) and (idx2 in rsi_points)
+                    cond3 = rsi_condition(rsi_idx2, rsi_idx1)
+                    cond4 = rsi_threshold_check(rsi_idx1, rsi_idx2)
 
                     if cond1 and cond2 and cond3 and cond4:
-                        rsi_between = rsi.loc[idx1+1:idx2]
+                        rsi_between = rsi.iloc[idx1_pos + 1: idx2_pos]
 
                         if len(rsi_between) == 0:
                             continue
 
                         if divergence_type == 'Bullish Divergence' and np.all(rsi_between >= np.minimum(rsi_idx1, rsi_idx2)):
-                                # Calculate TP and SL
-                                previous_peak_idx = self.find_previous_peak(df, idx1, is_bullish=True,
-                                                                            bullish_peak_rsi_threshold=55,
-                                                                            bearish_peak_rsi_threshold=45)
-                                if previous_peak_idx is None:
-                                    continue
-                                tp, sl = self.calculate_tp_sl(previous_peak_idx, idx2, df, is_bullish=True)
+                            # Calculate TP and SL
+                            previous_peak_idx = self.find_previous_peak(df, idx1, is_bullish=True,
+                                                                        bullish_peak_rsi_threshold=55,
+                                                                        bearish_peak_rsi_threshold=45)
+                            if previous_peak_idx is None:
+                                continue
+                            tp, sl = self.calculate_tp_sl(previous_peak_idx, idx2, df, is_bullish=True)
 
-                                entry_idx = idx2 + 2
-                                if entry_idx >= len(df):
-                                    continue
-                                entry_datetime = df['datetime'].iloc[entry_idx]
-                                
-                                # Record divergence
-                                divergences.append({
-                                    'start_datetime': df['datetime'].iloc[idx1],
-                                    'end_datetime': df['datetime'].iloc[idx2],
-                                    'entry_datetime': entry_datetime,
-                                    'previous_peak_datetime': df['datetime'].iloc[previous_peak_idx],
-                                    'divergence': divergence_type,
-                                    'price_change': price_data.iloc[idx2 + min_bars_lookback] - price_data.iloc[idx2]
-                                    if idx2 + min_bars_lookback < len(df) else np.nan,
-                                    'rsi_change': df['rsi'].iloc[idx2 + min_bars_lookback] - rsi_idx2
-                                    if idx2 + min_bars_lookback < len(df) else np.nan,
-                                    'future_return': (price_data.iloc[idx2 + min_bars_lookback] - price_data.iloc[idx2]) /
-                                                        price_data.iloc[idx2]
-                                    if idx2 + min_bars_lookback < len(df) else np.nan,
-                                    'TP': tp,
-                                    'SL': sl
-                                })
-                                break  # Break after finding the first valid divergence
-                        
+                            entry_pos = idx2_pos + 2
+                            if entry_pos >= len(df):
+                                continue
+                            entry_idx = df.index[entry_pos]
+                            entry_datetime = df.loc[entry_idx, 'datetime']
+
+                            # Future return calculation
+                            future_pos = idx2_pos + min_bars_lookback
+                            if future_pos >= len(df):
+                                future_return = np.nan
+                                price_change = np.nan
+                                rsi_change = np.nan
+                            else:
+                                future_price = price_data.iloc[future_pos]
+                                price_change = future_price - price_data.loc[idx2]
+                                rsi_change = df['rsi'].iloc[future_pos] - rsi_idx2
+                                future_return = (future_price - price_data.loc[idx2]) / price_data.loc[idx2]
+
+                            # Record divergence
+                            divergences.append({
+                                'start_datetime': df.loc[idx1, 'datetime'],
+                                'end_datetime': df.loc[idx2, 'datetime'],
+                                'entry_datetime': entry_datetime,
+                                'previous_peak_datetime': df.loc[previous_peak_idx, 'datetime'],
+                                'divergence': divergence_type,
+                                'price_change': price_change,
+                                'rsi_change': rsi_change,
+                                'future_return': future_return,
+                                'TP': tp,
+                                'SL': sl
+                            })
+                            break  # Break after finding the first valid divergence
+
                         elif divergence_type == 'Bearish Divergence' and np.all(rsi_between <= np.maximum(rsi_idx1, rsi_idx2)):
                             # Calculate TP and SL
                             previous_valley_idx = self.find_previous_peak(df, idx1, is_bullish=False,
@@ -151,28 +168,40 @@ class DivergenceDetector:
                                 continue
                             tp, sl = self.calculate_tp_sl(previous_valley_idx, idx2, df, is_bullish=False)
 
-                            entry_idx = idx2 + 2
-                            if entry_idx >= len(df):
+                            entry_pos = idx2_pos + 2
+                            if entry_pos >= len(df):
                                 continue
-                            entry_datetime = df['datetime'].iloc[entry_idx]
+                            entry_idx = df.index[entry_pos]
+                            entry_datetime = df.loc[entry_idx, 'datetime']
 
+                            # Future return calculation
+                            future_position = df.index.get_loc(idx2) + min_bars_lookback
+                            if future_position >= len(df):
+                                future_return = np.nan
+                                price_change = np.nan
+                                rsi_change = np.nan
+                            else:
+                                future_price = price_data.iloc[future_position]
+                                price_change = future_price - price_data.loc[idx2]
+                                rsi_change = df['rsi'].iloc[future_position] - rsi_idx2
+                                future_return = (future_price - price_data.loc[idx2]) / price_data.loc[idx2]
+
+                            rsi_between = rsi.iloc[idx1_pos + 1: idx2_pos]
                             # Record divergence
+
                             divergences.append({
-                                'start_datetime': df['datetime'].iloc[idx1],
-                                'end_datetime': df['datetime'].iloc[idx2],
+                                'start_datetime': df['datetime'].loc[idx1],
+                                'end_datetime': df['datetime'].loc[idx2],
                                 'entry_datetime': entry_datetime,
-                                'previous_peak_datetime': df['datetime'].iloc[previous_valley_idx],
+                                'previous_peak_datetime': df['datetime'].loc[previous_valley_idx],
                                 'divergence': divergence_type,
-                                'price_change': price_data.iloc[idx2 + min_bars_lookback] - price_data.iloc[idx2]
-                                if idx2 + min_bars_lookback < len(df) else np.nan,
-                                'rsi_change': df['rsi'].iloc[idx2 + min_bars_lookback] - rsi_idx2
-                                if idx2 + min_bars_lookback < len(df) else np.nan,
-                                'future_return': (price_data.iloc[idx2 + min_bars_lookback] - price_data.iloc[idx2]) /
-                                                    price_data.iloc[idx2]
-                                if idx2 + min_bars_lookback < len(df) else np.nan,
+                                'price_change': price_change,
+                                'rsi_change': rsi_change,
+                                'future_return': future_return,
                                 'TP': tp,
                                 'SL': sl
                             })
+                                
                             break  # Break after finding the first valid divergence
 
         # Bullish Divergence Detection
