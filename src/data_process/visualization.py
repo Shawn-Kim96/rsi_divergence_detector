@@ -2,6 +2,11 @@ import mplfinance as mpf
 import pandas as pd
 import numpy as np
 
+
+# TODO: There are still problems in following visualziation
+# TODO: 1. hard to visualize divergence in RSI. No options to add aline in addplot
+# TODO: 2. hard to visualize TP, SL in graph it self. No annoatations are added.
+
 class Visualizer:
     @staticmethod
     def plot_divergence(df, divergence_df, title='', save_fig=False):
