@@ -1,6 +1,13 @@
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
+import logging
+import time
+
+
+logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
+                    format='%(name)s - %(levelname)s - %(message)s')
+
 
 class DivergenceDetector:
     @staticmethod
@@ -50,6 +57,10 @@ class DivergenceDetector:
 
     def find_divergences(self, df, rsi_period=14, min_bars_lookback=5, max_bars_lookback=180,
                          bullish_rsi_threshold=30, bearish_rsi_threshold=70, price_prominence=1, rsi_prominence=1):
+        
+        logging.info(f"Start finding divergence {df.timeframe.values[0]}")
+        start_time = time.time()
+
         df = df.copy()
         price_high = df['high']
         price_low = df['low']
@@ -146,10 +157,10 @@ class DivergenceDetector:
 
                             # Record divergence
                             divergences.append({
-                                'start_datetime': df.loc[idx1, 'datetime'],
-                                'end_datetime': df.loc[idx2, 'datetime'],
-                                'entry_datetime': entry_datetime,
-                                'previous_peak_datetime': df.loc[previous_peak_idx, 'datetime'],
+                                'start_datetime': pd.to_datetime(df['datetime'].loc[idx1]),
+                                'end_datetime': pd.to_datetime(df['datetime'].loc[idx2]),
+                                'entry_datetime': pd.to_datetime(entry_datetime),
+                                'previous_peak_datetime': pd.to_datetime(df['datetime'].loc[previous_peak_idx]),
                                 'divergence': divergence_type,
                                 'price_change': price_change,
                                 'rsi_change': rsi_change,
@@ -190,10 +201,10 @@ class DivergenceDetector:
                             # Record divergence
 
                             divergences.append({
-                                'start_datetime': df['datetime'].loc[idx1],
-                                'end_datetime': df['datetime'].loc[idx2],
-                                'entry_datetime': entry_datetime,
-                                'previous_peak_datetime': df['datetime'].loc[previous_valley_idx],
+                                'start_datetime': pd.to_datetime(df['datetime'].loc[idx1]),
+                                'end_datetime': pd.to_datetime(df['datetime'].loc[idx2]),
+                                'entry_datetime': pd.to_datetime(entry_datetime),
+                                'previous_peak_datetime': pd.to_datetime(df['datetime'].loc[previous_valley_idx]),
                                 'divergence': divergence_type,
                                 'price_change': price_change,
                                 'rsi_change': rsi_change,
@@ -229,7 +240,8 @@ class DivergenceDetector:
             rsi_threshold=45,
             is_bullish=False
         )
-
+        
+        logging.info(f"Finish generating divergenc :: {time.time() - start_time}[s]")
         divergence_df = pd.DataFrame(divergences)
         if not divergence_df.empty:
             divergence_df.set_index('end_datetime', inplace=True)
