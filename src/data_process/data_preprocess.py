@@ -45,6 +45,14 @@ class DataPreprocess:
         return df
 
     @staticmethod
+    def change_index_to_datetime(df):
+        df['datetime'] = pd.to_datetime(df['datetime'], format='mixed')
+        if df.index.dtype == 'int64':
+            df.set_index('datetime', inplace=True)
+        
+        return df
+
+    @staticmethod
     def generate_labels(df, future_periods):
         df = df.copy()
         for period in future_periods:
