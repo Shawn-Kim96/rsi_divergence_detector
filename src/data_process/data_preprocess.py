@@ -52,40 +52,6 @@ class DataPreprocess:
         
         return df
 
-    @staticmethod
-    def generate_labels(df, future_periods):
-        df = df.copy()
-        for period in future_periods:
-            df[f'future_return_{period}'] = df['close'].shift(-period) / df['close'] - 1
-        return df
-
-    @staticmethod
-    def label_data(df, future_periods, timeframe=None):
-        df = df.copy()
-        timeframes = df['timeframe'].unique()
-        df_list = []
-        
-        for timeframe in timeframes:
-            df_timeframe = df[df['timeframe'] == timeframe]
-            for period in future_periods:
-                future_return_col = f'future_return_{period}'
-                zscore_col = f'future_return_zscore_{period}'
-                label_col = f'label_{period}'
-                
-                # future_return이 존재하는 경우에만 계산
-                if future_return_col in df_timeframe.columns:
-                    # Z-score 계산
-                    df_timeframe[zscore_col] = (df_timeframe[future_return_col] - df_timeframe[future_return_col].mean()) / df_timeframe[future_return_col].std()
-                    # 레이블링
-                    df_timeframe[label_col] = 0  # Neutral
-                    df_timeframe.loc[df_timeframe[zscore_col] > 0.5, label_col] = 1  # Buy
-                    df_timeframe.loc[df_timeframe[zscore_col] < -0.5, label_col] = -1  # Sell
-            df_list.append(df_timeframe)
-        
-        df_labeled = pd.concat(df_list)
-        return df_labeled
-
-
     def preprocess_data(self, data, future_periods):
         # Data Cleaning
         data = data.copy()
