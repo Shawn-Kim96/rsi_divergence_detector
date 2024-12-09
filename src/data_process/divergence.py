@@ -4,7 +4,6 @@ from scipy.signal import find_peaks
 import logging
 import time
 
-
 logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
                     format='%(name)s - %(levelname)s - %(message)s')
 
@@ -141,7 +140,7 @@ class DivergenceDetector:
                             if entry_pos >= len(df):
                                 continue
                             entry_idx = df.index[entry_pos]
-                            entry_datetime = df.loc[entry_idx, 'datetime']
+                            entry_price = df.loc[entry_idx, 'open']
 
                             # Future return calculation
                             future_pos = idx2_pos + min_bars_lookback
@@ -157,10 +156,11 @@ class DivergenceDetector:
 
                             # Record divergence
                             divergences.append({
-                                'start_datetime': pd.to_datetime(df['datetime'].loc[idx1]),
-                                'end_datetime': pd.to_datetime(df['datetime'].loc[idx2]),
-                                'entry_datetime': pd.to_datetime(entry_datetime),
-                                'previous_peak_datetime': pd.to_datetime(df['datetime'].loc[previous_peak_idx]),
+                                'start_datetime': idx1,
+                                'end_datetime': idx2,
+                                'entry_datetime': entry_idx,
+                                'entry_price': entry_price,
+                                'previous_peak_datetime': previous_peak_idx,
                                 'divergence': divergence_type,
                                 'price_change': price_change,
                                 'rsi_change': rsi_change,
@@ -183,7 +183,7 @@ class DivergenceDetector:
                             if entry_pos >= len(df):
                                 continue
                             entry_idx = df.index[entry_pos]
-                            entry_datetime = df.loc[entry_idx, 'datetime']
+                            entry_price = df.loc[entry_idx, 'open']
 
                             # Future return calculation
                             future_position = df.index.get_loc(idx2) + min_bars_lookback
@@ -201,10 +201,11 @@ class DivergenceDetector:
                             # Record divergence
 
                             divergences.append({
-                                'start_datetime': pd.to_datetime(df['datetime'].loc[idx1]),
-                                'end_datetime': pd.to_datetime(df['datetime'].loc[idx2]),
-                                'entry_datetime': pd.to_datetime(entry_datetime),
-                                'previous_peak_datetime': pd.to_datetime(df['datetime'].loc[previous_valley_idx]),
+                                'start_datetime': idx1,
+                                'end_datetime': idx2,
+                                'entry_datetime': entry_idx,
+                                'entry_price': entry_price,
+                                'previous_peak_datetime': previous_valley_idx,
                                 'divergence': divergence_type,
                                 'price_change': price_change,
                                 'rsi_change': rsi_change,
@@ -247,4 +248,5 @@ class DivergenceDetector:
             divergence_df.set_index('end_datetime', inplace=True)
         else:
             divergence_df = pd.DataFrame(columns=['divergence', 'price_change', 'rsi_change', 'future_return', 'TP', 'SL'])
+
         return divergence_df
