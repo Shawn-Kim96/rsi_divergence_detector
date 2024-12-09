@@ -2,13 +2,13 @@ from data_fetcher import DataFetcher
 from data_preprocess import DataPreprocess
 from divergence import DivergenceDetector
 from visualization import Visualizer
+from data_labeler import DataLabeler
 import pandas as pd
 import yaml
 import logging
 import os, sys
 from dotenv import load_dotenv
-# from ...utils.path_finder import get_project_path
-
+from tqdm import tqdm
 
 PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
 CUR_DIR = PROJECT_PATH + "/src/data_process"
@@ -48,8 +48,8 @@ def preprocess_data(df, timeframe, future_period_list):
     df = data_preprocessor.generate_features(df)
     
     # label generation for data
-    df = data_preprocessor.generate_labels(df, future_periods=future_period_list)
-    df = data_preprocessor.label_data(df, future_periods=future_period_list)
+    # df = data_preprocessor.generate_labels(df, future_periods=future_period_list)
+    # df = data_preprocessor.label_data(df, future_periods=future_period_list)
     df.dropna(inplace=True)
 
     df = data_preprocessor.change_index_to_datetime(df)
@@ -67,35 +67,37 @@ def main():
     future_periods = list(range(1, 61))
 
     divergence_data = {}
-    # training_data = pd.DataFrame()
-    training_data = pd.read_csv(f"{PROJECT_PATH}/data/training_data.csv")
+    training_data = pd.DataFrame()
+    # training_data = pd.read_csv(f"{PROJECT_PATH}/data/training_data.csv")
     divergence_detector = DivergenceDetector()
 
-    for timeframe in timeframes:
+    for timeframe in tqdm(timeframes, desc=f"Processing data"):
         # fetch data from external link or use downloaded data
-        # df = training_data[training_data.timeframe == timeframe]
+        print(f"Reading {timeframe} csv data")
         df = fetch_data_from_external(exchange_name, symbol, timeframe)
 
-        # feature / label generation for data
+        print(f"Processing {timeframe} csv data")
+        # feature generation for data
         df = preprocess_data(df, timeframe, future_periods)
 
         # concating data to total training data
         training_data = pd.concat([training_data, df])
         
+        print(f"Making divergence data from {timeframe} data")
         # divergence period generation
         divergence_data[timeframe] = divergence_detector.find_divergences(df, bullish_rsi_threshold=35, bearish_rsi_threshold=65)
     
-    training_data.to_csv(f'{PROJECT_PATH}/data/training_data.csv', index=False)
-    pd.to_pickle(divergence_data, f"{PROJECT_PATH}/data/divergence_data")
+    # label data
+    data_labeler = DataLabeler(price_data = fetch_data_from_external(exchange_name, symbol, timeframes[0]))
+    for key, value in divergence_data.items():
+        divergence_data[key] = data_labeler.label_divergence_data(value)
 
-    logging.info('Training data saved to data/training_data.csv')
+    pd.to_pickle(training_data, f'{PROJECT_PATH}/data/training_data.pickle')
+    pd.to_pickle(divergence_data, f"{PROJECT_PATH}/data/divergence_data.pickle")
 
-    # data = DataPreprocess.generate_labels(data, future_periods=future_periods)
+    print('Training data saved to data/training_data.pickle')
 
-    # Preprocess data
-    # X_train_seq, X_test_seq, y_train_seq, y_test_seq = DataPreprocess.preprocess_data(data, future_period_hash)
-
-
+    
 
 if __name__ == "__main__":
     main()
