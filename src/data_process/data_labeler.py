@@ -26,20 +26,27 @@ class DataLabeler:
             triggered_label = False
             hit_tp = False
             hit_sl = False
+            divergence_type = row['divergence']
 
             # if candle's low <= SL -> SL hit, high >= TP -> TP hit
-            for _, row2 in self.price_df[self.price_df.index >= entry_datetime]:
+            for _, row2 in self.price_df[self.price_df.index >= entry_datetime].iterrows():
                 c_high, c_low = row2['high'], row2['low']
 
-                # SL 터치 여부 우선 확인
-                if c_low <= sl:
-                    hit_sl = True
-                    break
+                if divergence_type == "Bearish Divergence":
+                    if c_high >= sl:
+                        hit_sl = True
+                        break
+                    if c_low <= tp:
+                        hit_tp = True
+                        break
+                else:
+                    if c_low <= sl:
+                        hit_sl = True
+                        break
 
-                # TP 터치 여부 확인
-                if c_high >= tp:
-                    hit_tp = True
-                    break
+                    if c_high >= tp:
+                        hit_tp = True
+                        break
 
             if hit_tp and not hit_sl:
                 triggered_label = True
@@ -50,5 +57,5 @@ class DataLabeler:
         
         divergence_df['label'] = labels
         logging.info(f"Finished labeling data, total_time :: {time.time() - t}")
-        
+
         return divergence_df

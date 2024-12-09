@@ -123,11 +123,10 @@ class DataFetcher:
 
 if __name__=="__main__":
     symbol = 'BTC/USDT'
-    # timeframes = ['1m', '5m', '10m', '15m', '30m', '1h', '4h', '1d']
-    timeframes = ['10m']
+    timeframes = ['5m', '15m', '30m', '1h', '4h', '1d']
     data_fetcher = DataFetcher()
 
-    data_fetcher.fetch_and_save_all_data(symbol, timeframes, since='2017-08-17T00:00:00Z')
+    data_fetcher.fetch_and_save_all_data(symbol, timeframes, since='2024-11-27T00:20:00Z')
 
     for timeframe in timeframes:
         print(f"Loading {timeframe} data...")
