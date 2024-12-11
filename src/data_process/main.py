@@ -9,6 +9,7 @@ import logging
 import os, sys
 from dotenv import load_dotenv
 from tqdm import tqdm
+import time
 
 PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
 CUR_DIR = PROJECT_PATH + "/src/data_process"
@@ -68,7 +69,6 @@ def main():
 
     divergence_data = {}
     training_data = pd.DataFrame()
-    # training_data = pd.read_pickle(f"{PROJECT_PATH}/data/training_data.pickle")
     divergence_detector = DivergenceDetector()
 
     for timeframe in tqdm(timeframes, desc=f"Processing data"):
@@ -85,20 +85,52 @@ def main():
         
         print(f"Making divergence data from {timeframe} data")
         # divergence period generation
+        df = training_data.loc[training_data.timeframe == timeframe]
         divergence_data[timeframe] = divergence_detector.find_divergences(df, bullish_rsi_threshold=35, bearish_rsi_threshold=65)
 
-    # divergence_data = pd.read_pickle(f"{PROJECT_PATH}/data/divergence_data.pickle")
     
     # label data
+    print("Labeling divergence data")
+    start_time = time.time()
+    
+    data_labeler = DataLabeler(price_data = training_data.loc[training_data.timeframe == '5m'])
+    for key, value in divergence_data.items():
+        divergence_data[key] = data_labeler.label_divergence_data(value)
+    
+    print(f"Finished labeling data. Processed time :: {time.time() - start_time}")
+    pd.to_pickle(training_data, f'{PROJECT_PATH}/data/training_data.pickle')
+
+    print('Training data saved and divergence data saved.')
+
+    
+def update_divergence_data():
+    config = load_config()
+    timeframes = config['timeframes']
+
+    divergence_data = {}
+    training_data = pd.read_pickle(f"{PROJECT_PATH}/data/training_data.pickle")
+    divergence_detector = DivergenceDetector()
+
+    for timeframe in tqdm(timeframes, desc=f"Processing data"):
+        print(f"Making divergence data from {timeframe} data")
+        # divergence period generation
+        df = training_data.loc[training_data.timeframe == timeframe]
+        divergence_data[timeframe] = divergence_detector.find_divergences(df, bullish_rsi_threshold=35, bearish_rsi_threshold=65)
+
+    # label data
+    print("Labeling divergence data")
+    start_time = time.time()
+
     data_labeler = DataLabeler(price_data = training_data.loc[training_data.timeframe == '5m'])
     for key, value in divergence_data.items():
         divergence_data[key] = data_labeler.label_divergence_data(value)
 
-    # pd.to_pickle(training_data, f'{PROJECT_PATH}/data/training_data.pickle')
-    pd.to_pickle(divergence_data, f"{PROJECT_PATH}/data/divergence_data2.pickle")
+    print(f"Finished labeling data. Processed time :: {time.time() - start_time}")
 
-    print('Training data saved to data/training_data.pickle')
 
-    
+    pd.to_pickle(divergence_data, f"{PROJECT_PATH}/data/divergence_data_updated.pickle")
+
+
+
 if __name__ == "__main__":
     main()
