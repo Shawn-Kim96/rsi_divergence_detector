@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
 
 
 # TODO: divergence function is not optimal. There are many things to update for optimal algorithms
-#       1. Apply SQL to dataframe (for join, lag, lead, etc.)
+#       1. Apply SQL to dataframe (for join, lag, lead, etc.) (DONE)
 #       2. Implement sliding window algorithm for real-time divergence detector
 #       3. Implement SQL server database instead of Google Sheets
 

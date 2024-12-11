@@ -332,44 +332,110 @@ class DivergenceDetector:
     
     @staticmethod
     def compare_with_different_timeframes(divergence_data):
-        # Assuming dd_filter is a dictionary where keys are timeframes ('5m', '15m', etc.)
-        # and values are the respective DataFrames.
-        timeframe_to_minutes = {
-            '1m': 1,
-            '5m': 5,
-            '15m': 15,
-            '30m': 30,
-            '1h': 60,
-            '4h': 240,
-            '1d': 1440  # 하루는 1440분
+        """
+        Compare divergences across different timeframes and mark them accordingly.
+
+        For each divergence in a base timeframe, mark the corresponding aligned divergence
+        in other timeframes based on the alignment of start_datetime.
+
+        Parameters:
+        - divergence_data (dict): A dictionary where keys are timeframe strings (e.g., '5m', '1h')
+            and values are Pandas DataFrames indexed by start_datetime.
+
+        Returns:
+        - dict: The updated divergence_data with additional boolean columns indicating divergences
+            across different timeframes.
+        """
+        # Define the timeframe to frequency mapping
+        timeframe_to_freq = {
+            '1m': '1T',
+            '5m': '5T',
+            '15m': '15T',
+            '30m': '30T',
+            '1h': '1H',
+            '4h': '4H',
+            '1d': 'D'
         }
-        # Define the timeframes for which to check divergence
-        for timeframe_key in divergence_data.keys():
+        timeframes = ['1m','5m','15m','30m','1h','4h','1d']
+
+        # Step 0: Validation and Preparation
+        for timeframe, df in divergence_data.items():
+            # Check if timeframe is defined in the mapping
+            if timeframe not in timeframe_to_freq:
+                raise ValueError(f"Timeframe '{timeframe}' is not defined in the frequency mapping.")
+
+            # Ensure the index is a DatetimeIndex
+            if not isinstance(df.index, pd.DatetimeIndex):
+                raise TypeError(f"The index of dataframe '{timeframe}' must be a DatetimeIndex.")
+
+            # Ensure 'divergence' column exists
+            if 'divergence' not in df.columns:
+                raise KeyError(f"The dataframe for timeframe '{timeframe}' must contain a 'divergence' column.")
+
+            # Check for duplicate indices
+            # if df.index.duplicated().any():
+            #     raise ValueError(f"The dataframe for timeframe '{timeframe}' contains duplicate 'start_datetime' indices.")
+
+        # Step 1: Initialize 'div_{other_timeframe}' columns as False
+        for timeframe_key, df in divergence_data.items():
             for compare_key in divergence_data.keys():
+                div_col = f"div_{compare_key}"
                 if timeframe_key != compare_key:
-                    divergence_data[timeframe_key][f"div_{compare_key}"] = False
+                    if div_col not in df.columns:
+                        df[div_col] = False
+                else:
+                    if div_col not in df.columns:
+                        df[div_col] = True
 
-        # Iterate over all timeframes to compare divergences
-        for base_timeframe, base_df in divergence_data.items():
-            for compare_timeframe, compare_df in divergence_data.items():
-                if base_timeframe == compare_timeframe:
-                    continue  # 동일한 시간봉은 비교하지 않음
+        # Step 2: Prepare divergence sets for higher timeframes
+        # Create a dictionary to hold sets of start_datetime with divergences for each timeframe
+        divergence_sets = {}
+        for timeframe, df in divergence_data.items():
+            # Extract the set of start_datetime where divergence is True
+            divergence_times = set(df.index)
+            divergence_sets[timeframe] = divergence_times
 
-                # 비교 시간봉의 간격(분)을 가져옴
-                compare_interval = pd.to_timedelta(timeframe_to_minutes[compare_timeframe], unit='m')
+        # Step 3: Align divergences across timeframes
+        for t_idx, base_timeframe in enumerate(timeframes):
+            if base_timeframe not in divergence_data.keys():
+                continue
+            base_df = divergence_data[base_timeframe]
+            base_div_times = base_df.index
 
-                # 각 base_df의 row에 대해 비교
-                for base_index, _ in base_df.iterrows():
-                    base_start = base_index
+            # Iterate over higher timeframes to align divergences
+            for higher_timeframe in timeframes[t_idx+1:]:
+                if higher_timeframe not in divergence_data.keys():
+                    continue
+                
+                higher_df = divergence_data[higher_timeframe]
+                # Get the frequency string for flooring
+                freq = timeframe_to_freq[higher_timeframe]
 
-                    # 비교 시간봉의 모든 행에 대해 시작 시간 범위 체크
-                    for compare_index, _ in compare_df.iterrows():
-                        compare_start = compare_index
+                # Floor the base divergence times to the nearest lower interval of the higher timeframe
+                aligned_start_times = base_div_times.floor(freq)
 
-                        # 기준 시간(base_start)이 비교 시간 범위(compare_start ~ compare_start + compare_interval)에 있는지 확인
-                        if compare_start <= base_start < (compare_start + compare_interval):
-                            # 조건을 만족하면 서로의 다이버전스 컬럼을 True로 설정
-                            base_df.at[base_index, f"div_{compare_timeframe}"] = True
-                            compare_df.at[compare_index, f"div_{base_timeframe}"] = True
-        
+                # Check which aligned_start_times exist in the higher timeframe's divergence set
+                mask = aligned_start_times.isin(divergence_sets[higher_timeframe])
+
+                # Debugging: Print lengths
+                print(f"Base Timeframe: {base_timeframe}, Higher Timeframe: {higher_timeframe}")
+                print(f"Number of base divergences: {len(base_div_times)}")
+                print(f"Number of mask values: {len(mask)}")
+
+                # Proceed only if lengths match
+                if len(base_div_times) != len(mask):
+                    raise ValueError(
+                        f"Length mismatch between base_div_times ({len(base_div_times)}) and mask ({len(mask)}) "
+                        f"for base timeframe '{base_timeframe}' and higher timeframe '{higher_timeframe}'."
+                    )
+
+                # Assign the mask to the base DataFrame
+                div_higher_col = f"div_{higher_timeframe}"
+                base_df[div_higher_col] = mask
+
+                # Assign to the higher DataFrame
+                matched_aligned_times = aligned_start_times[mask]
+                div_base_col = f"div_{base_timeframe}"
+                higher_df.loc[matched_aligned_times, div_base_col] = True
+            
         return divergence_data
