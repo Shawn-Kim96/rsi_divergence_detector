@@ -19,7 +19,12 @@ logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
                     format='%(name)s - %(levelname)s - %(message)s')
 
 
-print(CUR_DIR)
+# TODO: divergence function is not optimal. There are many things to update for optimal algorithms
+#       1. Apply SQL to dataframe (for join, lag, lead, etc.)
+#       2. Implement sliding window algorithm for real-time divergence detector
+#       3. Implement SQL server database instead of Google Sheets
+
+
 def load_config(config_file=os.path.join(CUR_DIR, 'config.yaml')):
     with open(config_file, 'r') as file:
         config = yaml.safe_load(file)
