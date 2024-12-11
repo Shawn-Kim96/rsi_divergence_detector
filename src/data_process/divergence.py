@@ -7,6 +7,8 @@ import time
 logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
                     format='%(name)s - %(levelname)s - %(message)s')
 
+PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
+
 
 class DivergenceDetector:
     @staticmethod
@@ -54,6 +56,69 @@ class DivergenceDetector:
         return tp, sl
 
 
+    # def filter_longest_divergences(self, divergence_df):
+    #     """
+    #     Filters the divergences to keep only the longest one for overlapping divergences.
+    #     """
+    #     # Add a 'duration' column to calculate the length of each divergence
+    #     divergence_df['duration'] = (divergence_df['end_datetime'] - divergence_df.index).total_seconds()
+
+    #     # Group by the overlapping 'end_datetime' and 'divergence' type
+    #     filtered_divergences = []
+    #     grouped = divergence_df.groupby(['end_datetime', 'divergence'])
+
+    #     for (end_datetime, divergence_type), group in grouped:
+    #         # Sort by duration and keep the longest divergence
+    #         longest_divergence = group.sort_values(by='duration', ascending=False).iloc[0]
+    #         filtered_divergences.append(longest_divergence)
+
+    #     # Rebuild the filtered DataFrame
+    #     return pd.DataFrame(filtered_divergences)
+    @staticmethod
+    def clean_divergence_df(df_div):
+        df_div['TP_percent'] = 100 * (df_div['TP'] - df_div['entry_price']) * np.where(df_div['divergence'] == 'Bullish Divergence', 1, -1) / df_div['entry_price'] 
+        df_div['SL_percent'] = 100 * (df_div['entry_price'] - df_div['SL']) * np.where(df_div['divergence'] == 'Bullish Divergence', 1, -1) / df_div['entry_price']
+        df_div['TP_/_SL'] = df_div['TP_percent'] / df_div['SL_percent']
+        is_bullish = np.where(df_div['divergence'] == 'Bullish Divergence', 1, -1)
+        df_div['profit'] = np.where(
+            df_div['label'],
+            is_bullish * (df_div['TP'] - df_div['entry_price']),
+            -is_bullish * (df_div['entry_price'] - df_div['SL'])
+        )
+        
+        df_div = df_div.sort_index().sort_values(by='end_datetime')
+        df_div[['price_change', 'rsi_change', 'TP', 'SL', 'TP_percent', 'SL_percent', 'TP_/_SL', 'profit']] = df_div[['price_change', 'rsi_change', 'TP', 'SL', 'TP_percent', 'SL_percent', 'TP_/_SL', 'profit']].round(2)
+
+
+    @staticmethod
+    def upload_divergence_data_to_google_sheet(divergence_data, sheet_url = "https://docs.google.com/spreadsheets/d/1uJy2-CV63Pywc2GJJGRP6fSHXmPuTTybS8bMIWhH4Qc/edit?gid=0#gid=0"):
+        import gspread
+        from oauth2client.service_account import ServiceAccountCredentials
+        
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        credentials = ServiceAccountCredentials.from_json_keyfile_name(f'{PROJECT_PATH}/calcium-ember-444319-n7-3b60cf57e696.json', scope)
+        client = gspread.authorize(credentials)
+        spreadsheet = client.open_by_url(sheet_url)
+
+        sheets = {}
+
+        for key, value in divergence_data.items():
+            ddf = value.copy()
+            ddf['start_datetime'] = ddf.index
+            ddf = ddf[['start_datetime'] + [col for col in ddf.columns if col != 'start_datetime']]
+            ddf = ddf.astype(str)
+            sheets[key] = ddf
+        
+        for sheet_name, df in sheets.items():
+            try:
+                worksheet = spreadsheet.worksheet(sheet_name)
+            except gspread.exceptions.WorksheetNotFound:
+                worksheet = spreadsheet.add_worksheet(title=sheet_name, rows="100", cols="20")
+            
+            worksheet.clear()
+            worksheet.update([df.columns.values.tolist()] + df.values.tolist())
+
+
     def find_divergences(self, df, rsi_period=14, min_bars_lookback=5, max_bars_lookback=180,
                          bullish_rsi_threshold=30, bearish_rsi_threshold=70, price_prominence=1, rsi_prominence=1):
         
@@ -63,19 +128,24 @@ class DivergenceDetector:
         df = df.copy()
         price_high = df['high']
         price_low = df['low']
+        price_close = df['close']
         rsi = df['rsi']
         divergences = []
 
         # Find peaks and troughs in price and RSI
-        price_high_peaks, _ = find_peaks(price_high, prominence=price_prominence)
-        price_low_peaks, _ = find_peaks(price_low, prominence=price_prominence)
+        # price_high_peaks, _ = find_peaks(price_high, prominence=price_prominence)
+        # price_low_peaks, _ = find_peaks(-price_low, prominence=price_prominence)
+        price_close_peaks, _ = find_peaks(price_close, prominence=price_prominence)
+        price_close_peaks_reverse, _ = find_peaks(-price_close, prominence=price_prominence)
 
         rsi_peaks, _ = find_peaks(rsi.values, prominence=rsi_prominence)
         rsi_troughs, _ = find_peaks(-rsi.values, prominence=rsi_prominence)
 
         # Convert indices to arrays for vectorized operations
-        price_high_peaks_df_idx = df.index[price_high_peaks]
-        price_low_peaks_df_idx = df.index[price_low_peaks]
+        # price_high_peaks_df_idx = df.index[price_high_peaks]
+        # price_low_peaks_df_idx = df.index[price_low_peaks]
+        price_high_peaks_df_idx = df.index[price_close_peaks]
+        price_low_peaks_df_idx = df.index[price_close_peaks_reverse]
         rsi_troughs_df_idx = set(df.index[rsi_troughs])
         rsi_peaks_df_idx = set(df.index[rsi_peaks])
 
@@ -104,7 +174,8 @@ class DivergenceDetector:
 
                 idx1_candidates = df.index[idx1_candidates_positions]
 
-                price_data = price_low if divergence_type == 'Bullish Divergence' else price_high
+                # price_data = price_low if divergence_type == 'Bullish Divergence' else price_high
+                price_data = price_close
 
                 # Price and RSI at idx2
                 price_idx2 = price_data.loc[idx2]
@@ -164,7 +235,7 @@ class DivergenceDetector:
                                 'divergence': divergence_type,
                                 'price_change': price_change,
                                 'rsi_change': rsi_change,
-                                'future_return': future_return,
+                                # 'future_return': future_return,
                                 'TP': tp,
                                 'SL': sl
                             })
@@ -209,7 +280,7 @@ class DivergenceDetector:
                                 'divergence': divergence_type,
                                 'price_change': price_change,
                                 'rsi_change': rsi_change,
-                                'future_return': future_return,
+                                # 'future_return': future_return,
                                 'TP': tp,
                                 'SL': sl
                             })
@@ -242,11 +313,15 @@ class DivergenceDetector:
             is_bullish=False
         )
         
-        logging.info(f"Finish generating divergenc :: {time.time() - start_time}[s]")
+        logging.info(f"Finish generating divergence :: {time.time() - start_time}[s]")
         divergence_df = pd.DataFrame(divergences)
+        divergence_df = divergence_df.sort_index().sort_values(by='end_datetime')
+
+        # Filtering to keep only the longest divergence if similar ones exist
         if not divergence_df.empty:
-            divergence_df.set_index('end_datetime', inplace=True)
+            divergence_df.set_index('start_datetime', inplace=True)
+            # divergence_df = self.filter_longest_divergences(divergence_df)
         else:
-            divergence_df = pd.DataFrame(columns=['divergence', 'price_change', 'rsi_change', 'future_return', 'TP', 'SL'])
+            divergence_df = pd.DataFrame(columns=['end_datetime', 'entry_datetime', 'entry_price', 'previous_peak_datetime', 'divergence', 'price_change', 'rsi_change', 'future_return', 'TP', 'SL'])
 
         return divergence_df
