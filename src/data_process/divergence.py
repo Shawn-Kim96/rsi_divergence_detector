@@ -9,6 +9,8 @@ logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
 
 PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
 
+# TODO: make function for analyzing divergence data
+
 
 class DivergenceDetector:
     @staticmethod
@@ -74,6 +76,7 @@ class DivergenceDetector:
 
     #     # Rebuild the filtered DataFrame
     #     return pd.DataFrame(filtered_divergences)
+
     @staticmethod
     def clean_divergence_df(df_div):
         df_div['TP_percent'] = 100 * (df_div['TP'] - df_div['entry_price']) * np.where(df_div['divergence'] == 'Bullish Divergence', 1, -1) / df_div['entry_price'] 
@@ -86,7 +89,7 @@ class DivergenceDetector:
             -is_bullish * (df_div['entry_price'] - df_div['SL'])
         )
         
-        df_div = df_div.sort_index().sort_values(by='end_datetime')
+        df_div = df_div.sort_values(by='end_datetime').sort_index()
         df_div[['price_change', 'rsi_change', 'TP', 'SL', 'TP_percent', 'SL_percent', 'TP_/_SL', 'profit']] = df_div[['price_change', 'rsi_change', 'TP', 'SL', 'TP_percent', 'SL_percent', 'TP_/_SL', 'profit']].round(2)
 
 
@@ -325,3 +328,48 @@ class DivergenceDetector:
             divergence_df = pd.DataFrame(columns=['end_datetime', 'entry_datetime', 'entry_price', 'previous_peak_datetime', 'divergence', 'price_change', 'rsi_change', 'future_return', 'TP', 'SL'])
 
         return divergence_df
+
+    
+    @staticmethod
+    def compare_with_different_timeframes(divergence_data):
+        # Assuming dd_filter is a dictionary where keys are timeframes ('5m', '15m', etc.)
+        # and values are the respective DataFrames.
+        timeframe_to_minutes = {
+            '1m': 1,
+            '5m': 5,
+            '15m': 15,
+            '30m': 30,
+            '1h': 60,
+            '4h': 240,
+            '1d': 1440  # 하루는 1440분
+        }
+        # Define the timeframes for which to check divergence
+        for timeframe_key in divergence_data.keys():
+            for compare_key in divergence_data.keys():
+                if timeframe_key != compare_key:
+                    divergence_data[timeframe_key][f"div_{compare_key}"] = False
+
+        # Iterate over all timeframes to compare divergences
+        for base_timeframe, base_df in divergence_data.items():
+            for compare_timeframe, compare_df in divergence_data.items():
+                if base_timeframe == compare_timeframe:
+                    continue  # 동일한 시간봉은 비교하지 않음
+
+                # 비교 시간봉의 간격(분)을 가져옴
+                compare_interval = pd.to_timedelta(timeframe_to_minutes[compare_timeframe], unit='m')
+
+                # 각 base_df의 row에 대해 비교
+                for base_index, _ in base_df.iterrows():
+                    base_start = base_index
+
+                    # 비교 시간봉의 모든 행에 대해 시작 시간 범위 체크
+                    for compare_index, _ in compare_df.iterrows():
+                        compare_start = compare_index
+
+                        # 기준 시간(base_start)이 비교 시간 범위(compare_start ~ compare_start + compare_interval)에 있는지 확인
+                        if compare_start <= base_start < (compare_start + compare_interval):
+                            # 조건을 만족하면 서로의 다이버전스 컬럼을 True로 설정
+                            base_df.at[base_index, f"div_{compare_timeframe}"] = True
+                            compare_df.at[compare_index, f"div_{base_timeframe}"] = True
+        
+        return divergence_data
