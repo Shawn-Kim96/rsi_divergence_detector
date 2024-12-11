@@ -48,8 +48,8 @@ class Visualizer:
         # Loop through divergence data and prepare annotations
         for idx, row in divergence_df.iterrows():
             try:
-                start_datetime = pd.to_datetime(row['start_datetime'])
-                end_datetime = idx
+                start_datetime = idx
+                end_datetime = pd.to_datetime(row['end_datetime'])
                 entry_datetime = pd.to_datetime(row['entry_datetime'])
                 previous_peak_datetime = pd.to_datetime(row['previous_peak_datetime'])
                 tp = row['TP']
