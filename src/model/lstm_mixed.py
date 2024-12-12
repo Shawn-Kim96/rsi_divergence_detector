@@ -2,30 +2,59 @@ import torch
 import torch.nn as nn
 
 
-class MixedModel(nn.Module):
-    def __init__(self, seq_input_dim, seq_hidden_dim, seq_num_layers, nonseq_input_dim, num_classes=2):
-        super(MixedModel, self).__init__()
-        
+# ----------------------------------------
+# Model Definition
+# ----------------------------------------
+class MixedLSTMModel(nn.Module):
+    def __init__(self, seq_input_dim, seq_hidden_dim=64, seq_num_layers=2,
+                 nonseq_input_dim=0, mlp_hidden_dim=64, num_classes=2, dropout=0.1):
+        super(MixedLSTMModel, self).__init__()
+        self.seq_num_layers = seq_num_layers
+        self.seq_hidden_dim = seq_hidden_dim
+
         # LSTM for sequential data
-        self.lstm = nn.LSTM(input_size=seq_input_dim, hidden_size=seq_hidden_dim, num_layers=seq_num_layers, batch_first=True)
-        
-        # After LSTM, we get hidden state which we'll combine with non-seq features
-        combined_input_dim = seq_hidden_dim + nonseq_input_dim
-        
-        self.fc = nn.Linear(combined_input_dim, num_classes)
-        
+        self.lstm = nn.LSTM(
+            input_size=seq_input_dim, 
+            hidden_size=seq_hidden_dim,
+            num_layers=seq_num_layers, 
+            batch_first=True, 
+            dropout=dropout, 
+            bidirectional=False
+        )
+
+        # Fully-connected layers after LSTM
+        fc_input_dim = seq_hidden_dim + nonseq_input_dim
+
+        self.fc1 = nn.Linear(fc_input_dim, mlp_hidden_dim)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(mlp_hidden_dim, num_classes)
+
     def forward(self, seq_input, nonseq_input):
-        # seq_input: (B, L, D)
-        # nonseq_input: (B, N)
-        _, (h_n, _) = self.lstm(seq_input)  # h_n: (num_layers, B, seq_hidden_dim)
-        # Take the last layer hidden state
-        h_last = h_n[-1]  # (B, seq_hidden_dim)
+        """
+        Forward pass of the model.
         
-        # Concatenate with nonseq input
+        Parameters:
+        - seq_input: Tensor of shape (batch_size, seq_length, seq_input_dim)
+        - nonseq_input: Tensor of shape (batch_size, nonseq_input_dim)
+        
+        Returns:
+        - out: Tensor of shape (batch_size, num_classes)
+        """
+        # LSTM output
+        lstm_out, (h_n, c_n) = self.lstm(seq_input)
+        # h_n: (num_layers, batch_size, hidden_dim)
+        h_last = h_n[-1]  # (batch_size, hidden_dim)
+
         if nonseq_input.shape[1] > 0:
-            x = torch.cat([h_last, nonseq_input], dim=1)  # (B, seq_hidden_dim + nonseq_input_dim)
+            x = torch.cat((h_last, nonseq_input), dim=1)  # (batch_size, hidden_dim + nonseq_input_dim)
         else:
             x = h_last
-        
-        out = self.fc(x)  # (B, num_classes)
+
+        # Fully connected layers
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        out = self.fc2(x)
+
         return out
