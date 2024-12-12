@@ -252,7 +252,7 @@ def main():
     model = MixedLSTMModel(**model_arguments)
 
     train_losses, val_losses, train_accuracies, val_accuracies = train_model(
-        model, train_loader, val_loader, epochs=20, lr=1e-3, device=device, save_path=f'{PROJECT_PATH}/mode_data/mixed_lstm/{name_model(model_arguments)}.pt'
+        model, train_loader, val_loader, epochs=20, lr=1e-3, device=device, save_path=f'{PROJECT_PATH}/mode_data/mixed_lstm/{model_naming(model_arguments)}.pt'
     )
 
     # Load best model
