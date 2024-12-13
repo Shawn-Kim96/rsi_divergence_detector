@@ -76,6 +76,10 @@ class LSTMDivergenceDataset(Dataset):
         nonseq_cols: columns in divergence_df used as non-sequential features.
         """
         self.divergence_df = divergence_df.copy()
+        if type(self.divergence_df.index[0]) != int:
+            self.divergence_df.reset_index(inplace=True)
+        self.divergence_df['divergence'] = [1 if d == 'Bullish Divergence' else -1 for d in self.divergence_df.divergence]
+
         self.price_df = price_df.copy()
         self.seq_length = seq_length
 
@@ -93,7 +97,8 @@ class LSTMDivergenceDataset(Dataset):
             self.nonseq_cols = nonseq_cols
 
         # Create additional divergence feature sequences from multiple timeframes
-        self.divergence_seq = create_divergence_sequence(self.price_df, divergence_data)
+        if 'div_15m' not in self.price_df.columns:
+            self.price_df = create_divergence_sequence(self.price_df, divergence_data)
         # Merge these divergence columns with price_df sequential data
         # This adds columns like 'div_5m', 'div_1h' etc. as sequential features
         # for c in self.divergence_seq.columns:
@@ -123,9 +128,8 @@ class LSTMDivergenceDataset(Dataset):
         return len(self.events)
 
     def __getitem__(self, idx):
-        start_dt = self.events[idx]
-        row = self.divergence_df.loc[start_dt]
-
+        row = self.divergence_df.loc[idx]
+        start_dt = row['start_datetime']
         end_dt = row['end_datetime']
         # last time step = end_dt + 15min
         last_time = pd.to_datetime(end_dt) + timedelta(minutes=15)
