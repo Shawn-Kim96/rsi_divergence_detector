@@ -1,4 +1,4 @@
-import os
+import os, sys
 import logging
 from datetime import timedelta
 import pandas as pd
@@ -7,7 +7,9 @@ from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import Dataset
 
-PROJECT_PATH = os.path.abspath('.')
+path_splited = os.path.abspath('.').split('rsi_divergence_detector')[0]
+PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_detector')
+sys.path.append(PROJECT_PATH)
 
 # ----------------------------------------
 # Logging configuration

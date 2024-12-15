@@ -10,14 +10,16 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from sklearn.utils import class_weight
 import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
 
 
 # Add project path to system path
 
 path_splited = os.path.abspath('.').split('rsi_divergence_detector')[0]
-PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_data')
+PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_detector')
 sys.path.append(PROJECT_PATH)
-
+print(PROJECT_PATH)
 
 from src.dataset.lstm_dataset import LSTMDivergenceDataset
 from src.model.lstm_mixed import MixedLSTMModel
@@ -86,23 +88,37 @@ def main_transformer():
 
     # Initialize Dataset
     logger.info("Initializing datasets...")
-    train_dataset = LSTMDivergenceDataset(divergence_df=divergence_df_train, 
-                                         price_df=price_df, 
-                                         divergence_data=divergence_data, 
-                                         seq_length=288)  # 288 * 5min = 24 hours
+    if "train_dataset.pickle" not in os.listdir(f"{PROJECT_PATH}/data/training_data"):
+
+        train_dataset = LSTMDivergenceDataset(divergence_df=divergence_df_train, 
+                                            price_df=price_df, 
+                                            divergence_data=divergence_data, 
+                                            seq_length=288)  # 288 * 5min = 24 hours
+    else:
+        train_dataset = pd.read_pickle(f"{PROJECT_PATH}/data/training_data/train_dataset.pickle")
+
+    
     # Use the same scaler for validation and test
     scaler = train_dataset.scaler
-    val_dataset = LSTMDivergenceDataset(divergence_df=divergence_df_val, 
-                                       price_df=price_df, 
-                                       divergence_data=divergence_data, 
-                                       seq_length=288, 
-                                       scaler=scaler)
+    if "val_dataset.pickle" not in os.listdir(f"{PROJECT_PATH}/data/training_data"):
+
+        val_dataset = LSTMDivergenceDataset(divergence_df=divergence_df_val, 
+                                                price_df=price_df, 
+                                                divergence_data=divergence_data, 
+                                                seq_length=288, 
+                                                scaler=scaler)
+    else:
+        val_dataset = pd.read_pickle(f"{PROJECT_PATH}/data/training_data/val_dataset.pickle")
     
-    test_dataset = LSTMDivergenceDataset(divergence_df=divergence_df_test, 
-                                        price_df=price_df, 
-                                        divergence_data=divergence_data, 
-                                        seq_length=288, 
-                                        scaler=scaler)
+    if "test_dataset.pickle" not in os.listdir(f"{PROJECT_PATH}/data/training_data"):
+
+        test_dataset = LSTMDivergenceDataset(divergence_df=divergence_df_test, 
+                                            price_df=price_df, 
+                                            divergence_data=divergence_data, 
+                                            seq_length=288, 
+                                            scaler=scaler)
+    else:
+        test_dataset = pd.read_pickle(f"{PROJECT_PATH}/data/training_data/test_dataset.pickle")
 
     # Initialize DataLoaders
     logger.info("Creating DataLoaders...")

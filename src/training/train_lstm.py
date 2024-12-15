@@ -181,6 +181,45 @@ def plot_results(train_losses, val_losses, train_accuracies, val_accuracies, out
 
 
 
+def plot_results_combined(train_losses, val_losses, train_accuracies, val_accuracies, outdir='plots'):
+    """
+    Plot training and validation loss and accuracy in a single figure (stacked vertically).
+    
+    Parameters:
+    - train_losses: List of training losses per epoch.
+    - val_losses: List of validation losses per epoch.
+    - train_accuracies: List of training accuracies per epoch.
+    - val_accuracies: List of validation accuracies per epoch.
+    - outdir: Directory to save the plots.
+    """
+    os.makedirs(outdir, exist_ok=True)
+    
+    # Create a combined plot
+    fig, axs = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
+    
+    # Plot Loss
+    axs[0].plot(train_losses, label='Train Loss', marker='o', color='blue')
+    axs[0].plot(val_losses, label='Validation Loss', marker='o', color='orange')
+    axs[0].set_title('Loss per Epoch')
+    axs[0].set_ylabel('Loss')
+    axs[0].legend()
+    axs[0].grid(True)
+    
+    # Plot Accuracy
+    axs[1].plot(train_accuracies, label='Train Accuracy', marker='o', color='green')
+    axs[1].plot(val_accuracies, label='Validation Accuracy', marker='o', color='red')
+    axs[1].set_title('Accuracy per Epoch')
+    axs[1].set_xlabel('Epoch')
+    axs[1].set_ylabel('Accuracy')
+    axs[1].legend()
+    axs[1].grid(True)
+    
+    # Save the combined plot
+    plt.tight_layout()
+    plt.savefig(os.path.join(outdir, 'combined_plot.png'))
+    plt.show()
+
+    
 def model_naming(**kwargs):
     """
     Generate a model name based on hyperparameters.
