@@ -7,7 +7,7 @@ import os, sys
 # TODO: 2. hard to visualize TP, SL in graph it self. No annoatations are added.
 
 path_splited = os.path.abspath('.').split('rsi_divergence_detector')[0]
-PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_data')
+PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_detector')
 sys.path.append(PROJECT_PATH)
 
 
