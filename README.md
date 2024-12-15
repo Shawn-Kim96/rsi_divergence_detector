@@ -67,11 +67,24 @@ poetry shell
 
 
 ### Run Main Application 
-The main entry point for the application is located in src/main.py. This script trains the model using prepared data (`price_data.pickle`, `divergence_data.pickle`)
+The main entry point for the application is located in src/main.py. This script trains the model using prepared data
+**Make sure** you have your data ready
+- `data/processed_data/training_data.pickle`
+- `data/processed_data/divergence_data.pickle`
+
+It is much faster if you have dataset in `data/training_data`
+- `data/training_data/train_dataset.pickle`
+- `data/training_data/valid_dataset.pickle`
+- `data/training_data/test_dataset.pickle`
+
 
 ```bash
 python src/main.py
 ```
+
+This code will start training the model.
+- TODO: should update main script for various parameter tuning.
+
 
 ### Notebook Analysis
 Explore the notebooks/ directory for step-by-step data analysis, divergence testing, and visualization. The following notebooks are included:
