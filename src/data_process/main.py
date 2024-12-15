@@ -12,7 +12,7 @@ from tqdm import tqdm
 import time
 
 path_splited = os.path.abspath('.').split('rsi_divergence_detector')[0]
-PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_data')
+PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_detector')
 sys.path.append(PROJECT_PATH)
 
 
@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
 #       3. Implement SQL server database instead of Google Sheets
 
 
-def load_config(config_file=os.path.join(CUR_DIR, 'config.yaml')):
+def load_config(config_file=os.path.join(PROJECT_PATH, 'config.yaml')):
     with open(config_file, 'r') as file:
         config = yaml.safe_load(file)
     return config
