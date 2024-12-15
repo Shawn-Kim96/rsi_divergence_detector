@@ -13,7 +13,8 @@ import numpy as np
 
 
 # Add project path to system path
-PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
+
+PROJECT_PATH = os.path.abspath('.')
 sys.path.append(PROJECT_PATH)
 
 from src.dataset.lstm_dataset import LSTMDivergenceDataset
@@ -43,7 +44,7 @@ def get_device():
 
 
 
-def transformer_main():
+def main_transformer():
     """
     Main function to train, evaluate, and test the LSTM model for divergence classification.
     """
@@ -329,4 +330,4 @@ def main_lstm():
     
     
 if __name__ == "__main__":
-    main()
+    main_transformer()

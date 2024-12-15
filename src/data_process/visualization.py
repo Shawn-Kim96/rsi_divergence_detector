@@ -1,11 +1,15 @@
 import mplfinance as mpf
 import pandas as pd
-import numpy as np
-
+import os, sys
 
 # TODO: There are still problems in following visualziation
 # TODO: 1. hard to visualize divergence in RSI. No options to add aline in addplot
 # TODO: 2. hard to visualize TP, SL in graph it self. No annoatations are added.
+
+path_splited = os.path.abspath('.').split('rsi_divergence_detector')[0]
+PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_data')
+sys.path.append(PROJECT_PATH)
+
 
 class Visualizer:
     @staticmethod
@@ -166,7 +170,6 @@ class Visualizer:
 
 
 if __name__ == "__main__":
-    PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
     import sys
     import pandas as pd
     sys.path.append(f"{PROJECT_PATH}")

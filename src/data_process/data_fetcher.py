@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 
 # Set up logging
 load_dotenv(".env")
-PROJECT_DIR = os.getenv("PROJECT_DIR")
 
 logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
                     format='%(name)s - %(levelname)s - %(message)s')

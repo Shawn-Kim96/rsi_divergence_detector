@@ -9,7 +9,8 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import time
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
+path_splited = os.path.abspath('.').split('rsi_divergence_detector')[0]
+PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_data')
 sys.path.append(PROJECT_PATH)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')

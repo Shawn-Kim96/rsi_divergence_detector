@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import Dataset
 
-PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
+PROJECT_PATH = os.path.abspath('.')
 
 # ----------------------------------------
 # Logging configuration
