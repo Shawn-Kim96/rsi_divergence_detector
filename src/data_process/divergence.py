@@ -7,7 +7,12 @@ import time
 logging.basicConfig(level=logging.INFO, filename='app.log', filemode='w',
                     format='%(name)s - %(levelname)s - %(message)s')
 
-PROJECT_PATH = "/Users/shawn/Documents/personal/rsi_divergence_detector"
+import os, sys
+
+path_splited = os.path.abspath('.').split('rsi_divergence_detector')[0]
+PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_detector')
+sys.path.append(PROJECT_PATH)
+
 
 # TODO: make function for analyzing divergence data
 

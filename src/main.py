@@ -14,8 +14,10 @@ import numpy as np
 
 # Add project path to system path
 
-PROJECT_PATH = os.path.abspath('.')
+path_splited = os.path.abspath('.').split('rsi_divergence_detector')[0]
+PROJECT_PATH = os.path.join(path_splited, 'rsi_divergence_data')
 sys.path.append(PROJECT_PATH)
+
 
 from src.dataset.lstm_dataset import LSTMDivergenceDataset
 from src.model.lstm_mixed import MixedLSTMModel

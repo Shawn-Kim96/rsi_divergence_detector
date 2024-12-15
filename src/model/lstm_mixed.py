@@ -26,7 +26,7 @@ class MixedLSTMModel(nn.Module):
         fc_input_dim = seq_hidden_dim + nonseq_input_dim
 
         self.fc1 = nn.Linear(fc_input_dim, mlp_hidden_dim)
-        self.relu = nn.LeakyReLU()
+        self.relu = nn.ELU()
         self.dropout = nn.Dropout(dropout)
         self.dropout_linear = nn.Dropout(0.3)
         self.fc2 = nn.Linear(mlp_hidden_dim, mlp_hidden_dim//2)
