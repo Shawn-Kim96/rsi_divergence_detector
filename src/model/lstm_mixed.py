@@ -26,9 +26,12 @@ class MixedLSTMModel(nn.Module):
         fc_input_dim = seq_hidden_dim + nonseq_input_dim
 
         self.fc1 = nn.Linear(fc_input_dim, mlp_hidden_dim)
-        self.relu = nn.ReLU()
+        self.relu = nn.LeakyReLU()
         self.dropout = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(mlp_hidden_dim, num_classes)
+        self.dropout_linear = nn.Dropout(0.3)
+        self.fc2 = nn.Linear(mlp_hidden_dim, mlp_hidden_dim//2)
+        self.fc3 = nn.Linear(mlp_hidden_dim//2, mlp_hidden_dim//2)
+        self.fc4 = nn.Linear(mlp_hidden_dim//2, num_classes)
 
     def forward(self, seq_input, nonseq_input):
         """
@@ -52,9 +55,9 @@ class MixedLSTMModel(nn.Module):
             x = h_last
 
         # Fully connected layers
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.dropout(x)
-        out = self.fc2(x)
-
+        x = self.dropout(self.relu(self.fc1(x)))
+        x = self.dropout_linear(self.relu(self.fc2(x)))
+        x = self.dropout_linear(self.relu(self.fc3(x)))
+        out = self.fc4(x)
+        
         return out

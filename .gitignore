@@ -236,4 +236,6 @@ pyrightconfig.json
 .history
 .ionide
 
+.model_data/*
+calcium-ember-444319-n7-3b60cf57e696.json
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,macos,jupyternotebooks

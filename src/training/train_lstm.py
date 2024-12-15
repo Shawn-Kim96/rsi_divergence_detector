@@ -39,6 +39,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
     val_accuracies = []
 
     for epoch in range(epochs):
+        t = time.time()
         model.train()
         total_loss = 0.0
         total_correct = 0
@@ -57,8 +58,8 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
             _, preds = torch.max(outputs, 1)
             total_correct += (preds == y).sum().item()
 
-            if (batch_idx + 1) % log_interval == 0:
-                logger.info(f"Epoch [{epoch+1}/{epochs}], Batch [{batch_idx+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+            # if (batch_idx + 1) % log_interval == 0:
+            #     logger.info(f"Epoch [{epoch+1}/{epochs}], Batch [{batch_idx+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
 
         train_loss = total_loss / len(train_loader.dataset)
         train_acc = total_correct / len(train_loader.dataset)
@@ -73,7 +74,8 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
 
         logger.info(f"Epoch [{epoch+1}/{epochs}] - "
                     f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} - "
-                    f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+                    f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f} - "
+                    f"Time cost: {(time.time() - t):.2f}")
 
         # Step the scheduler based on validation loss
         scheduler.step(val_loss)
