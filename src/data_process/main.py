@@ -108,7 +108,8 @@ def main():
 
     st = time.time()
     data_labeler = DataLabeler(price_data = training_data.loc[training_data.timeframe == '5m'])
-    for key, value in divergence_data.items():
+    for key, value in tqdm(divergence_data.items(), desc="Processing timeframes"):
+        print(f"Labeling {key} timeframe divergences ({len(value)} records)")
         divergence_data[key] = data_labeler.label_divergence_data(value)
 
     print(f"Finished labeling data. Processed time :: {time.time() - st}")
@@ -145,7 +146,8 @@ def regenerate_divergence_data():
 
     st = time.time()
     data_labeler = DataLabeler(price_data = training_data.loc[training_data.timeframe == '5m'])
-    for key, value in divergence_data.items():
+    for key, value in tqdm(divergence_data.items(), desc="Processing timeframes"):
+        print(f"Labeling {key} timeframe divergences ({len(value)} records)")
         divergence_data[key] = data_labeler.label_divergence_data(value)
 
     print(f"Finished labeling data. Processed time :: {time.time() - st}")
