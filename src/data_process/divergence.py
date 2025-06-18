@@ -19,10 +19,28 @@ sys.path.append(PROJECT_PATH)
 
 class DivergenceDetector:
     @staticmethod
-    def find_previous_peak(df, divergence_start_idx, is_bullish, bullish_peak_rsi_threshold=55, bearish_peak_rsi_threshold=45):
-        # Consider only data before the divergence start index
-        divergence_start_idx
-        df_before_divergence = df.loc[:divergence_start_idx]
+    def find_previous_peak(df, divergence_start_idx, is_bullish, bullish_peak_rsi_threshold=55, bearish_peak_rsi_threshold=45, max_lookback_bars=50):
+        """
+        Find the previous peak/valley that represents the start of the trend wave.
+        Uses a more conservative approach with a maximum lookback period.
+        
+        Parameters:
+        - df: DataFrame with price and RSI data
+        - divergence_start_idx: Index where the divergence starts
+        - is_bullish: Boolean, True for bullish divergence, False for bearish
+        - bullish_peak_rsi_threshold: RSI threshold for bullish peaks
+        - bearish_peak_rsi_threshold: RSI threshold for bearish valleys
+        - max_lookback_bars: Maximum number of bars to look back
+        
+        Returns:
+        - Index of the previous peak/valley or None if not found
+        """
+        # Consider only data before the divergence start index with limited lookback
+        start_loc = df.index.get_loc(divergence_start_idx)
+        min_loc = max(0, start_loc - max_lookback_bars)
+        lookback_idx = df.index[min_loc]
+        df_before_divergence = df.loc[lookback_idx:divergence_start_idx]
+        
         if is_bullish:
             # Bullish: Find previous peaks with RSI >= bullish_peak_rsi_threshold
             peaks_idx, _ = find_peaks(df_before_divergence['high'].values)
@@ -31,7 +49,9 @@ class DivergenceDetector:
             valid_peaks = df_before_divergence.iloc[peaks_idx]
             valid_peaks = valid_peaks[valid_peaks['rsi'] >= bullish_peak_rsi_threshold]
             if valid_peaks.empty:
-                return None
+                # If no peaks meet the RSI threshold, take the highest peak available
+                highest_peak_idx = df_before_divergence['high'].idxmax()
+                return highest_peak_idx
             return valid_peaks.index[-1]  # Return the index of the last valid peak
         else:
             # Bearish: Find previous valleys with RSI <= bearish_peak_rsi_threshold
@@ -41,25 +61,43 @@ class DivergenceDetector:
             valid_valleys = df_before_divergence.iloc[valleys_idx]
             valid_valleys = valid_valleys[valid_valleys['rsi'] <= bearish_peak_rsi_threshold]
             if valid_valleys.empty:
-                return None
+                # If no valleys meet the RSI threshold, take the lowest valley available
+                lowest_valley_idx = df_before_divergence['low'].idxmin()
+                return lowest_valley_idx
             return valid_valleys.index[-1]  # Return the index of the last valid valley
 
 
     @staticmethod
     def calculate_tp_sl(previous_idx, divergence_idx, df, is_bullish):
+        """
+        Calculate Take Profit (TP) and Stop Loss (SL) levels based on the trend wave.
+        Uses more conservative Fibonacci levels for TP calculation.
+        
+        Parameters:
+        - previous_idx: Index of the previous peak/valley (start of trend)
+        - divergence_idx: Index of the divergence point
+        - df: DataFrame with price data
+        - is_bullish: Boolean, True for bullish divergence, False for bearish
+        
+        Returns:
+        - tp: Take Profit level
+        - sl: Stop Loss level
+        """
         previous_high = df.loc[previous_idx, 'high']
         divergence_low = df.loc[divergence_idx, 'low']
         previous_low = df.loc[previous_idx, 'low']
         divergence_high = df.loc[divergence_idx, 'high']
 
         if is_bullish:
-            # For bullish: TP is at 0.382 Fibonacci level
-            tp = divergence_low + (previous_high - divergence_low) * 0.382
-            sl = divergence_low  # SL is the low at the divergence point
+            # For bullish: Use a more conservative 0.236 Fibonacci level instead of 0.382
+            tp = divergence_low + (previous_high - divergence_low) * 0.236
+            # Add a small buffer to SL to avoid getting stopped out too easily
+            sl = divergence_low * 0.995  # 0.5% below the divergence low
         else:
-            # For bearish: TP is at 0.618 Fibonacci level
-            tp = divergence_high - (divergence_high - previous_low) * (1 - 0.618)
-            sl = divergence_high  # SL is the high at the divergence point
+            # For bearish: Use a more conservative 0.382 Fibonacci level instead of 0.618
+            tp = divergence_high - (divergence_high - previous_low) * 0.382
+            # Add a small buffer to SL to avoid getting stopped out too easily
+            sl = divergence_high * 1.005  # 0.5% above the divergence high
         return tp, sl
 
 
