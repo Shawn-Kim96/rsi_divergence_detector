@@ -36,11 +36,19 @@ def fetch_data_from_external(exchange_name, symbol, timeframe):
     data_fetcher = DataFetcher(exchange_name=exchange_name)
     
     data_name = f"BTC_USDT_{timeframe}.csv"
+    raw_data_path = os.path.join(PROJECT_PATH, "data", "raw_data", data_name)
 
-    if data_name in os.listdir(os.path.join(PROJECT_PATH, "data")):
+    # First check if data exists in raw_data folder
+    if os.path.exists(raw_data_path):
+        print(f"Loading data from raw_data folder: {raw_data_path}")
+        df = pd.read_csv(raw_data_path)
+    # Then check if data exists in data folder
+    elif data_name in os.listdir(os.path.join(PROJECT_PATH, "data")):
         data_full_name = os.path.join(PROJECT_PATH, "data", data_name)
+        print(f"Loading data from data folder: {data_full_name}")
         df = pd.read_csv(data_full_name)
     else:
+        print(f"No local data found for {timeframe}, fetching from exchange")
         df = data_fetcher.fetch_ohlcv(symbol, timeframe)
     
     df['timeframe'] = timeframe
@@ -162,5 +170,5 @@ def update_divergence_data():
 
 
 if __name__ == "__main__":
-    # main()
-    update_divergence_data()
+    main()
+    # update_divergence_data()
